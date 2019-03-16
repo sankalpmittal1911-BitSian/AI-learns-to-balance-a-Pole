@@ -11,10 +11,12 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
     anchor_stride: Controls the density of anchors. Typically 1 (anchors for
                    every pixel in the feature map), or 2 (every other pixel).
     Returns:
-        Total number of anchors will also change in 3D images. Anchors_per_location is for every pixel and number of pixels will change and will become H*W*D.
+        Total number of anchors will also change in 3D images. Anchors_per_location is for every pixel and number 
+        of pixels will change and will become H*W*D.
         rpn_class_logits: [batch, H * W * D * anchors_per_location, 2] Anchor classifier logits (before softmax)
         rpn_probs: [batch, H * W * D * anchors_per_location, 2] Anchor classifier probabilities.
-        Note: To avoid confusion with d in dx etc. I have denoted the delta of depth as d(dep). For 3D images, bounding boxes will also be 3D, it's known.
+        Note: To avoid confusion with d in dx etc. I have denoted the delta of depth as d(dep). For 3D images, 
+        bounding boxes will also be 3D, it's known.
         rpn_bbox: [batch, H * W * D * anchors_per_location, (dy, dx, dz, log(dh), log(dw), log(d(dep)] Deltas to be
                   applied to anchors.
     """
@@ -28,7 +30,8 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
     # Anchor Score. [batch, height, width, depth, anchors per location * 2].
     x = KL.Conv3D(2 * anchors_per_location, (1, 1, 1), padding='valid',
                   activation='linear', name='rpn_class_raw')(shared)
-    #We can change these number of filters to also num_of_classes*anchors_per_location. We are not changing this here since we are assuming classes in object can belong too is still same
+    #We can change these number of filters to also num_of_classes*anchors_per_location. We are not changing this 
+    #here since we are assuming classes in object can belong too is still same
     # Reshape to [batch, anchors, 2]
     rpn_class_logits = KL.Lambda(
         lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 2]))(x)
@@ -39,7 +42,8 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
  
     # Bounding box refinement. [batch, H, W, D, anchors per location * depth]
     # where depth is [x, y, z, log(w), log(h), log(dep)]
-    #Since our bounding box will mention 6 attributes as per 3D image (hence it's depth is 6). This depth is different from the other one!
+    #Since our bounding box will mention 6 attributes as per 3D image (hence it's depth is 6). This depth is different 
+    #from the other one!
     x = KL.Conv3D(anchors_per_location * 6, (1, 1, 1), padding="valid",
                   activation='linear', name='rpn_bbox_pred')(shared)
  
