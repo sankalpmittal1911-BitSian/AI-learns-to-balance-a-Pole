@@ -1,0 +1,99 @@
+GSOC ’19 HAhRD PROPOSAL
+
+3D Object Detection
+
+Description
+
+This is HahRD project. The task is to implement new algorithms to localize and classify objects from 3D images (from data acquisition of future sub-detector of CMS). This detector containing about 6 million channels will be used to reconstruct the 3D cluster of objects coming from the particles arising from the proton-proton collisions within the Large Hadron Collider. Previous works have focused on Convolution Neural Networks (CNN) for 2D object. This project aims to focus on object detection models to scan all clusters in our 3D images. Models like R-CNN, fast(er) R-CNN, SSD, YOLO, etc. are top ranked in the ImageNet competition. One of these models, called Mask R-CNN model have already been evaluated in HAhRD project with 2D projections. This project of GSOC’19 aims to derive a 3D version (true 3D input “gray” images), from the original 2D (RGB) Mask R-CNN implementation.
+
+Technical Details
+
+Programming Language Used:
+•	Python
+
+
+
+Libraries to be Used:
+•	Keras
+•	TensorFlow
+•	numpy
+•	sklearn
+•	os
+•	random
+•	distutils.version
+Literatures to be used:
+•	Mask R-CNN (https://arxiv.org/pdf/1703.06870.pdf)
+•	Feature Pyramid Networks for Object Detection (https://arxiv.org/pdf/1612.03144.pdf)
+•	Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks(https://papers.nips.cc/paper/5638-faster-r-cnn-towards-real-time-object-detection-with-region-proposal-networks.pdf)
+•	Weakly Supervised Region Proposal Network and Object Detection(http://openaccess.thecvf.com/content_ECCV_2018/papers/Peng_Tang_Weakly_Supervised_Region_ECCV_2018_paper.pdf)
+•	3D Object Proposals for Accurate Object Class Detection (https://papers.nips.cc/paper/5644-3d-object-proposals-for-accurate-object-class-detection.pdf)
+Blogs to be considered:
+•	https://www.pyimagesearch.com/2018/11/19/mask-r-cnn-with-opencv/
+•	https://medium.freecodecamp.org/mask-r-cnn-explained-7f82bec890e3
+•	https://medium.com/@jonathan_hui/understanding-feature-pyramid-networks-for-object-detection-fpn-45b227b9106c
+•	https://medium.com/@tanaykarmarkar/region-proposal-network-rpn-backbone-of-faster-r-cnn-4a744a38d7f9
+•	https://engineering.matterport.com/splash-of-color-instance-segmentation-with-mask-r-cnn-and-tensorflow-7c761e238b46 (Most Important)
+
+
+
+Project Objective:
+•	Develop a customized state of the art model for 3D Object Detection.
+•	Extend the Mask-RCNN implementation for 3D input tensors.(https://github.com/matterport/Mask_RCNN/)
+
+Model Architecture
+
+Overview:
+Our basic Mask R-CNN model consists of two-stage frameworks. The first stage takes the image as input and generates proposals (areas where the desired object is probable). The second stage classifies the proposals and generates bounding boxes and masks. 
+The modules are as follows:
+
+ResNet Backbone:
+The backbone is simply a standard convolutional neural network model, which acts as a feature extractor. The current model supports both ResNet50 and ResNet101 and these are great feature extractors. The early layers detect low level features mainly corners and edges and as we move forward via convolutions we have the later layers which can detect high-level features like the object itself. This is because for every convolution, we have weights associated with it, which try to tune the features better and better for every forward step and eventually the training leads us close to objects detection as a whole.
+When we pass the input image through this backbone, we convert an RGB image (x,y,3) is converted to a feature map of shape (f1,f2,channels) where x,y >> f1,f2 and channels >>3. This feature map gives us basically the bottom-up levels of FPN, the first pyramid. 
+Why ResNet?
+Precisely, ResNets helped solve following problem of deep networks:
+As we increase layers (depth) of neural networks, seeing as the loss function converges, soon we come across a problem – degradation. With the increasing depth, performance metric gets saturated and starts to degrade rapidly. 
+What is the worst case of adding more layers? We can simply have a shallow network, which can do the needful, and the rest layers are simply identity functions. 
+ 
+Unfortunately, via experiments it was shown that sometimes deeper networks only degrade the metric after the saturation level. How to overcome this such that deep networks perform better and avoid degradation?
+
+Logic behind ResNets?
+Suppose we are trying the mapping x->y, where y=H(x). We can reframe this problem as, F(x) = y – x or F(x) = H(x) – x. This becomes, H(x) = F(x) + x. F(x) is called as residual function. We know that H(x) was stacked non-linear layers in the network. We are breaking it down into the identity layer (H(x) = x) and the residual layer (whatever remains as residue when we subtract the identity to the output, H(x) = F(x)).
+Nevertheless, why? What is the intuition?
+When we break the complex bulk into simpler parts, it is easier to memorize that then. I know it is a layman argument but it makes sense. Instead of asking the network to learn x->H(x) straight away, we say this H(x) is broken into simpler x and F(x) and then ask the network to learn it. It is simpler (since it is very easy to learn the identity counterpart) and this is precisely the essence of using ResNet. Further, they also mitigate the problem of vanishing gradients by providing an alternate path whose gradient cannot vanish. 
+ 
+Here is a building block:
+ 
+The equation governing this: 
+ 
+What is Ws ? Well, if input and output dimensions are not matching, we need to zero pad x to make it dimensions equal to y.
+Architectures:
+ 
+
+The model uses ResNet50 or 101 (50,101 stands for layers). A suggestion to improve the backbone can be using ResNet152 instead.
+Visualization of ResNet50 architecture: http://ethereon.github.io/netscope/#/gist/db945b393d40bfa26006
+
+Feature Pyramid Network: 
+We can still improve our ResNet backbone further. It basically represents the objects at multiple scales far better. The standard feature extraction did only consist of ResNet backbone, which for every forward convolution gives better and better features, and ultimately what we get is the bottom-up layer feature pyramid. 
+FPN improves the standard feature extraction by adding another pyramid (second) which takes in the high level features from the first pyramid (the bottom-up layer) and passes them to lower layers. This allows features at every level to have access to features at both high and low levels. This constitutes the top-down feature map of the FPN. 
+
+ 
+
+Which one to pick basically depends on the size of the target object. If we talk about the bottom-up levels first, then we can say that as we go up, the resolution decreases but the semantic value increases. Now we feed the semantically richest layer from bottom-up pyramid to the top most layer of the top-down feature pyramid. The reconstructed layers are semantically rich but the location of object is not yet precise. 
+To avoid this, we add lateral connections (skip connections in a way) between layers of both top-down and bottom-up feature pyramids. 
+ 
+
+P layers are constructed by doing (3,3) convolutions to the merged M layers. Why stop at P2? Answer is speed! The spacial dimensions of C1 are way too large and as such the calculations for P1 might slow down the training and calculation process. All P layers must have same channels since we are using a same detector. Now these P levels are fed into the RPN which we will discuss.
+So finally, we can say that: Backbone = ResNet101/ResNet50 + FPN.
+
+Region Proposal Network (RPN):
+A lightweight neural network scans the image in sliding window fashion and find areas that contains object. The region that RPN scans over are called anchors. Regions of input image? Not quite! It is the regions of backbone feature map that is generated by the FPN. By backbone feature map, we mean in the top-down level. This in turn allows RPN to reuse extracted features efficiently and avoid duplicate calculations. 
+This is how the RPN is integrated with FPN. After we feed top-down levels to convolutional layers, we call “those” layers, RPN Head. 
+ 
+As we can see in the above image, that the RPN generates two outputs for each anchor:
+1.	Anchor classes: In the current model it is either foreground (object) or 
+
+
+
+
+
+
